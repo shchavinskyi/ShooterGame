@@ -495,7 +495,10 @@ protected:
 	/** determine current weapon state */
 	void DetermineWeaponState();
 
-
+	
+// TODO Currently I need this function in ability,
+// Consider exposing such functionality on character level -> Show/Hide Current Weapon	
+public:
 	//////////////////////////////////////////////////////////////////////////
 	// Inventory
 
@@ -506,6 +509,7 @@ protected:
 	void DetachMeshFromPawn();
 
 
+protected:
 	//////////////////////////////////////////////////////////////////////////
 	// Weapon usage helpers
 

@@ -8,6 +8,14 @@
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnShooterCharacterEquipWeapon, AShooterCharacter*, AShooterWeapon* /* new */);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnShooterCharacterUnEquipWeapon, AShooterCharacter*, AShooterWeapon* /* old */);
 
+// Simple enumeration for addressing abilities in a map and replicating activation by id
+UENUM()
+enum class EAbilityId : uint8
+{
+	Grenade,
+	Reload, // Not implemented
+};
+
 UCLASS(Abstract)
 class AShooterCharacter : public ACharacter
 {
@@ -20,6 +28,8 @@ class AShooterCharacter : public ACharacter
 
 	/** Update the character. (Running, health etc). */
 	virtual void Tick(float DeltaSeconds) override;
+
+	virtual void BeginPlay() override;
 
 	/** cleanup inventory */
 	virtual void Destroyed() override;
@@ -106,6 +116,9 @@ class AShooterCharacter : public ACharacter
 
 	/** [server + local] change targeting state */
 	void SetTargeting(bool bNewTargeting);
+
+	/** [local] trigger throwing grenade ability */
+	void StartThrowingGrenade();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Movement
@@ -200,6 +213,9 @@ class AShooterCharacter : public ACharacter
 
 	/** player released run action */
 	void OnStopRunning();
+
+	/** player throw an grenade action */
+	void OnStartThrowingGrenade();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Reading data
@@ -485,6 +501,25 @@ protected:
 protected:
 	/** Returns Mesh1P subobject **/
 	FORCEINLINE USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
+
+    // Pretty simple way to replicate ability activation
+	// TODO Using replicated data will allow avoiding unnecessary RPC from server to owned client through NetMulticast
+	// It's needed to be moved to some ability component like AbilitySystemComponent in GAS
+public:
+	/** [server] request ability activation */
+	UFUNCTION(Server, Reliable)
+	void ServerActivateAbility(EAbilityId AbilityId);
+	
+	/** [server] Activate ability on all relevant clients + server */
+	UFUNCTION(NetMulticast, Unreliable)
+	void OnAbilityActivated(EAbilityId AbilityId);
+
+private:
+	UPROPERTY(EditDefaultsOnly, Category = Grenade)
+	TMap<EAbilityId, TSubclassOf<class UShooterAbility>> AbilityClasses;
+
+	UPROPERTY(Transient)
+	TMap<EAbilityId, UShooterAbility*> AbilityInstanced;
 };
 
 
