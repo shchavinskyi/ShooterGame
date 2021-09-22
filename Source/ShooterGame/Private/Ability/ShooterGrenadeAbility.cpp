@@ -22,8 +22,11 @@ void UShooterGrenadeAbility::Activate()
 		// TODO spawn from socket location
 		const FVector SpawnLocation = Avatar->GetActorLocation() + Avatar->GetBaseAimRotation().Vector() * 150.0f + Avatar->GetActorUpVector() * 50.0f;
 
-		const AShooterGrenadeProjectile* Grenade = GetWorld()->SpawnActor<AShooterGrenadeProjectile>(GrenadeClass, SpawnLocation, FRotator::ZeroRotator, SpawnParameters);
+		AShooterGrenadeProjectile* Grenade = GetWorld()->SpawnActor<AShooterGrenadeProjectile>(GrenadeClass, SpawnLocation, FRotator::ZeroRotator, SpawnParameters);
 		Grenade->InitVelocity(GrenadeRotation.Vector(), Avatar->GetVelocity());
+
+		// Add grenade to move ignore actors
+		Avatar->GetCapsuleComponent()->MoveIgnoreActors.Add(Grenade);
 	}
 
 	if (UAnimInstance* AnimInstance = Avatar->GetPawnMesh()->GetAnimInstance())
