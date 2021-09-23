@@ -95,6 +95,18 @@ void AShooterGrenadeProjectile::Tick(float DeltaSeconds)
 	RotationComp->RotationRate = RotationRate * Scale;
 }
 
+float AShooterGrenadeProjectile::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator,
+	AActor* DamageCauser)
+{
+	if (DamageThreshold < Damage)
+	{
+		Destroy();
+		return Damage;
+	}
+
+	return 0.0f;
+}
+
 void AShooterGrenadeProjectile::OnBounced(const FHitResult& ImpactResult, const FVector& ImpactVelocity)
 {
 	if (BounceSound)

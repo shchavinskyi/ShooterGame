@@ -725,11 +725,19 @@ void AShooterCharacter::StopWeaponFire()
 void AShooterCharacter::StartThrowingGrenade()
 {
 	constexpr EAbilityId Id = EAbilityId::Grenade;
+
+	UShooterAbility* GrenadeAbility = AbilityInstanced.FindChecked(Id);
+
+	// local check for activation
+	if (!GrenadeAbility->CanActivate())
+	{
+		return;
+	}
 	
-	// Activate local ability
+	// Activate local ability of owning client
 	if (GetLocalRole() == ROLE_AutonomousProxy)
 	{
-		AbilityInstanced.FindChecked(Id)->Activate();
+		GrenadeAbility->Activate();
 	}
 
 	ServerActivateAbility(Id);
@@ -1372,7 +1380,15 @@ void AShooterCharacter::OnAbilityActivated_Implementation(EAbilityId AbilityId)
 		return;
 	}
 
-	AbilityInstanced.FindChecked(EAbilityId::Grenade)->Activate();
+	// TODO We cannot add check "CanActivate" here since we don't have mechanism to handle false attempt to start
+	// abilities on server, proxies should not care at all
+	UShooterAbility* Ability = AbilityInstanced.FindChecked(AbilityId);
+	if (Ability->IsActive())
+	{
+		Ability->End();
+	}
+	
+	Ability->Activate();
 }
 
 void AShooterCharacter::ServerActivateAbility_Implementation(EAbilityId AbilityId)

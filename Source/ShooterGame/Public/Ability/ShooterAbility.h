@@ -22,6 +22,21 @@ public:
 
 	// Return true if avatar has authority 
 	bool HasAuthority() const;
+
+	// Return true when ability is active 
+	FORCEINLINE bool IsActive() const { return bIsActive; };
+
+	// Return true when ability can be activated 
+	virtual bool CanActivate() const;
 	
-	virtual void Activate() {};
+	virtual void Activate();
+	virtual void End();
+
+protected:
+	UPROPERTY(EditDefaultsOnly, Category = "Ability")
+	float Cooldown = -1.0f;
+
+private:
+	bool bIsActive = false;
+	float LastActivationTime = FLT_MIN;
 };

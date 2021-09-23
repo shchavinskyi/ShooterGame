@@ -21,6 +21,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void Destroyed() override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser) override;
 
 	UFUNCTION()
 	void OnBounced(const FHitResult& ImpactResult, const FVector& ImpactVelocity);
@@ -37,6 +38,10 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = Grenade)
 	float ExplosionDamage = 50.0f;
+
+	// Amount of damage need to take to explode
+	UPROPERTY(EditDefaultsOnly, Category = Grenade)
+	float DamageThreshold = 10.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category = Grenade)
 	TSubclassOf<UDamageType> DamageType;
