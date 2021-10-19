@@ -9,6 +9,7 @@
 #include "Animation/AnimInstance.h"
 #include "Sound/SoundNodeLocalPlayer.h"
 #include "AudioThread.h"
+#include "ShooterAbility.h"
 
 static int32 NetVisualizeRelevancyTestPoints = 0;
 FAutoConsoleVariableRef CVarNetVisualizeRelevancyTestPoints(
@@ -721,6 +722,27 @@ void AShooterCharacter::StopWeaponFire()
 	}
 }
 
+void AShooterCharacter::StartThrowingGrenade()
+{
+	constexpr EAbilityId Id = EAbilityId::Grenade;
+
+	UShooterAbility* GrenadeAbility = AbilityInstanced.FindChecked(Id);
+
+	// local check for activation
+	if (!GrenadeAbility->CanActivate())
+	{
+		return;
+	}
+	
+	// Activate local ability of owning client
+	if (GetLocalRole() == ROLE_AutonomousProxy)
+	{
+		GrenadeAbility->Activate();
+	}
+
+	ServerActivateAbility(Id);
+}
+
 bool AShooterCharacter::CanFire() const
 {
 	return IsAlive();
@@ -884,6 +906,8 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Run", IE_Pressed, this, &AShooterCharacter::OnStartRunning);
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
+
+	PlayerInputComponent->BindAction("ThrowGrenade", IE_Pressed, this, &AShooterCharacter::OnStartThrowingGrenade);
 }
 
 
@@ -1057,6 +1081,15 @@ void AShooterCharacter::OnStopRunning()
 	SetRunning(false, false);
 }
 
+void AShooterCharacter::OnStartThrowingGrenade()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	if (MyPC && MyPC->IsGameInputAllowed())
+	{
+		StartThrowingGrenade();
+	}
+}
+
 bool AShooterCharacter::IsRunning() const
 {
 	if (!GetCharacterMovement())
@@ -1133,6 +1166,19 @@ void AShooterCharacter::Tick(float DeltaSeconds)
 		{
 			DrawDebugSphere(GetWorld(), PointToTest, 10.0f, 8, FColor::Red);
 		}
+	}
+}
+
+void AShooterCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Init all ability instances from template classes
+	for (const TPair<EAbilityId, TSubclassOf<class UShooterAbility>>& AbilityClass : AbilityClasses)
+	{
+		// If all abilities are gonna be stateless, so we theoretically can use CDO instead of creating instances
+		UShooterAbility* AbilityInstance = NewObject<UShooterAbility>(this, AbilityClass.Value);
+		AbilityInstanced.Add(AbilityClass.Key, AbilityInstance);
 	}
 }
 
@@ -1323,4 +1369,29 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 	RelevancyCheckPoints.Add(FVector(BoundingBox.Max.X, BoundingBox.Max.Y - YDiff, BoundingBox.Max.Z));
 	RelevancyCheckPoints.Add(FVector(BoundingBox.Max.X - XDiff, BoundingBox.Max.Y - YDiff, BoundingBox.Max.Z));
 	RelevancyCheckPoints.Add(BoundingBox.Max);
+}
+
+void AShooterCharacter::OnAbilityActivated_Implementation(EAbilityId AbilityId)
+{
+	// Do not activate ability on autonomous proxies from NetMulticast
+	// TODO avoid unnecessary RPC to owned client 
+	if (GetLocalRole() == ROLE_AutonomousProxy)
+	{
+		return;
+	}
+
+	// TODO We cannot add check "CanActivate" here since we don't have mechanism to handle false attempt to start
+	// abilities on server, proxies should not care at all
+	UShooterAbility* Ability = AbilityInstanced.FindChecked(AbilityId);
+	if (Ability->IsActive())
+	{
+		Ability->End();
+	}
+	
+	Ability->Activate();
+}
+
+void AShooterCharacter::ServerActivateAbility_Implementation(EAbilityId AbilityId)
+{
+	OnAbilityActivated(AbilityId);
 }
